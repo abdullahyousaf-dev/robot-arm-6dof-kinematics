@@ -1,40 +1,57 @@
 # 6-DOF Robot Arm: Kinematics, Trajectory Planning and Handwriting
 
-A desktop 6-DOF arm (MG996R servos, Arduino) that writes letters with a pen.
-This repo has the Python kinematics and trajectory planner, the Arduino firmware
-that ran on the real robot, and a simulator that reproduces it.
+A desktop 6-DOF arm (MG996R servos, Arduino) that writes letters with a pen. This
+repo has the Python kinematics and trajectory planner, the Arduino firmware that ran
+on the real robot, and a simulator that reproduces it.
+
+[![tests](https://github.com/abdullahyousaf-dev/robot-arm-6dof-kinematics/actions/workflows/tests.yml/badge.svg)](https://github.com/abdullahyousaf-dev/robot-arm-6dof-kinematics/actions/workflows/tests.yml)
+![Python](https://img.shields.io/badge/python-3.11-blue)
+![Arduino](https://img.shields.io/badge/firmware-Arduino-00979D)
+![License: MIT](https://img.shields.io/badge/license-MIT-green)
 
 ![Real robot writing the letter N](media/letter_n_real_robot.gif)
+
+## Highlights
+
+- **Closed-form inverse kinematics** that reproduces the servo angles used on the real robot to **0.01°**
+- **Cartesian straight-line strokes**: joint-space interpolation bows a 7 cm stroke by 0.62 cm; this planner keeps it at zero
+- Runs on hardware: Arduino firmware for letters N/P/T, quintic splines and pick-and-drop
+
+## Results
+
+| Check | Result |
+|---|---|
+| IK → servo angles vs angles used on the robot | max difference **0.01°** |
+| Stroke straightness, joint-space interpolation (7 cm stroke) | 0.62 cm bow |
+| Stroke straightness, Cartesian planner | **0 cm** |
+| Quintic boundary conditions (velocity, acceleration at waypoints) | zero, tested |
+
+![Simulation of the arm writing N, T and P](media/letters_sim.png)
+
+## How it works
+
+- **Forward kinematics** of the full 6-joint chain from DH parameters measured on
+  the arm, including servo calibration offsets and a reversed joint.
+- **Closed-form inverse kinematics** for the pen tip (base yaw, shoulder, elbow).
+- **Quintic trajectories** with zero velocity and acceleration at each waypoint, so
+  the servos start and stop smoothly.
+- **Straight strokes:** the planner moves the pen in Cartesian space and solves IK at
+  every sample instead of interpolating joint angles.
+- **Workspace guards:** no motion below the table or into the column around the base.
 
 *Team project for Robot Mechanics & Control, MS Robotics & Intelligent Machine
 Engineering, NUST (2024). My part was the kinematics, the trajectory code and the
 servo firmware.*
 
-## What it does
-
-- **Forward kinematics** of the full 6-joint chain from DH parameters measured
-  on the arm, including servo calibration offsets and a reversed joint.
-- **Closed-form inverse kinematics** for the pen tip (base yaw, shoulder, elbow).
-  It reproduces the servo angles used on the robot to 0.01°.
-- **Quintic trajectories** with zero velocity and acceleration at each waypoint,
-  so the servos start and stop smoothly.
-- **Straight strokes:** the planner moves the pen in Cartesian space and solves IK at
-  every sample. Interpolating joint angles directly bows the strokes. In
-  simulation that bow reaches **0.62 cm** on a 7 cm stroke. The Cartesian planner
-  keeps it at zero.
-- **Workspace guards:** no motion below the table or into the column around the base.
-
-![Simulation of the arm writing N, T and P](media/letters_sim.png)
-
-## Run it
+## Quick start
 
 ```bash
 pip install -r requirements.txt
-python demos/write_letters.py        # prints the deviation table, saves media/letters_sim.png
-python -m pytest -q                  # 10 tests: IK/FK round trip, quintic boundary conditions, ...
+python demos/write_letters.py   # prints the deviation table, saves media/letters_sim.png
+python -m pytest -q             # 10 tests: IK/FK round trip, quintic boundary conditions, ...
 ```
 
-## Layout
+## Project structure
 
 ```
 arm/kinematics.py     DH forward kinematics, closed-form pen IK, workspace checks
@@ -47,15 +64,24 @@ legacy/               the original course scripts, kept for reference
 media/                demo GIF and plots
 ```
 
-## Notes
+## Design notes
 
-- Lengths are in cm and angles in degrees. Pen model: upper arm 10.4 cm,
-  forearm + pen 15 cm. A few sketches declare 12 cm, but the angles sent to the
-  servos were computed with 15 cm. At 12 cm the top of the letters is out of
-  reach, and the simulator flags this.
+- Lengths are in cm and angles in degrees. Pen model: upper arm 10.4 cm, forearm +
+  pen 15 cm. A few sketches declare 12 cm, but the angles sent to the servos were
+  computed with 15 cm. At 12 cm the top of the letters is out of reach, and the
+  simulator flags this.
 - The first firmware version interpolated joint angles linearly. The later
   `quintic_spline` sketch added smooth timing. The Python planner goes one step
   further with straight-line strokes.
+
+## Limitations & next steps
+
+- Hobby servos have backlash; the simulator models geometry, not servo dynamics
+- Next: closed-loop correction with a camera watching the pen tip
+
+## License
+
+MIT. See [LICENSE](LICENSE).
 
 **Keywords:** robotics, forward kinematics, inverse kinematics, Denavit-Hartenberg,
 trajectory planning, quintic polynomial, Arduino, servo control, Python, NumPy.
